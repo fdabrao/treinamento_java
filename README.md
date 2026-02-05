@@ -28,7 +28,9 @@ oop-pilares/
     │   ├── time/                    # Java Time API
     │   ├── annotations/             # Annotations
     │   ├── enums/                   # Enums
-    │   └── nio/                     # NIO.2 (Arquivos)
+    │   ├── nio/                     # NIO.2 (Arquivos)
+    │   ├── concorrencia/            # Multithreading e Concorrencia
+    │   └── jvm/                     # JVM Internals
     └── test/java/com/avanade/curso/
         └── [pacotes de teste correspondentes]
 ```
@@ -499,6 +501,354 @@ Em tempo de execucao, generics sao removidos (erasure). Nao e possivel:
 **Arquivos:**
 - `generics/GenericsExample.java`
 - `generics/GenericsTest.java`
+
+## Multithreading e Concorrencia
+
+Java suporta programacao concorrente desde suas primeiras versoes. Com o pacote `java.util.concurrent` (Java 5+), tornou-se muito mais facil e seguro trabalhar com multiplas threads.
+
+### Conceitos Fundamentais
+
+**Thread vs Processo:**
+- **Processo:** Programa em execucao com seu proprio espaco de memoria isolado
+- **Thread:** Unidade basica de execucao dentro de um processo
+- **Concorrencia:** Multiplas threads executando simultaneamente (aparentemente)
+- **Paralelismo:** Multiplas threads executando ao mesmo tempo (multi-core)
+
+**Desafios:**
+- **Race Condition:** Duas threads acessando dados compartilhados
+- **Deadlock:** Threads bloqueadas esperando umas pelas outras
+- **Starvation:** Thread nunca obtem acesso ao recurso
+- **Livelock:** Threads mudam estado sem progredir
+
+### Criando Threads
+
+**Tres formas:**
+
+```java
+// 1. Estendendo Thread
+class MinhaThread extends Thread {
+    public void run() {
+        System.out.println("Thread executando");
+    }
+}
+new MinhaThread().start();
+
+// 2. Implementando Runnable (preferido)
+class MeuRunnable implements Runnable {
+    public void run() {
+        System.out.println("Runnable executando");
+    }
+}
+new Thread(new MeuRunnable()).start();
+
+// 3. Lambda (Java 8+)
+new Thread(() -> System.out.println("Lambda")).start();
+```
+
+### Sincronizacao
+
+**Synchronized:**
+```java
+public class Contador {
+    private int valor = 0;
+    
+    // Metodo synchronized
+    public synchronized void incrementar() {
+        valor++; // Atomico
+    }
+    
+    // Bloco synchronized
+    public void incrementarBloco() {
+        synchronized (this) {
+            valor++;
+        }
+    }
+}
+```
+
+**Volatile:**
+```java
+private volatile boolean running = true;
+
+// Garante visibilidade entre threads
+// Toda thread ve o valor atualizado
+public void parar() {
+    running = false;
+}
+```
+
+### Atomic Classes
+
+Operacoes atomicas sem bloqueio (CAS - Compare-And-Swap):
+
+```java
+AtomicInteger contador = new AtomicInteger(0);
+
+contador.incrementAndGet();     // ++i
+contador.getAndIncrement();     // i++
+contador.addAndGet(10);         // i += 10
+contador.compareAndSet(0, 1);   // Atomico: se 0, vira 1
+```
+
+### Executors e Thread Pools
+
+```java
+// Thread Pool fixo
+ExecutorService executor = Executors.newFixedThreadPool(4);
+
+// Executa tarefa
+executor.submit(() -> System.out.println("Tarefa"));
+
+// Agenda execucao
+ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+scheduler.schedule(() -> System.out.println("Depois de 5s"), 5, TimeUnit.SECONDS);
+
+// IMPORTANTE: Sempre desligar
+executor.shutdown();
+```
+
+### Callable e Future
+
+```java
+// Tarefa que retorna valor
+Callable<Integer> tarefa = () -> {
+    Thread.sleep(1000);
+    return 42;
+};
+
+Future<Integer> future = executor.submit(tarefa);
+Integer resultado = future.get(); // Bloqueia ate terminar
+
+// Com timeout
+Integer resultado = future.get(2, TimeUnit.SECONDS);
+```
+
+### Colecoes Concorrentes
+
+```java
+// Map thread-safe (melhor que Hashtable/synchronizedMap)
+ConcurrentHashMap<String, Integer> mapa = new ConcurrentHashMap<>();
+
+// Lista - otima para leituras frequentes
+CopyOnWriteArrayList<String> lista = new CopyOnWriteArrayList<>();
+
+// Fila bloqueante
+BlockingQueue<String> fila = new LinkedBlockingQueue<>();
+fila.put("elemento");     // Bloqueia se cheia
+String item = fila.take(); // Bloqueia se vazia
+```
+
+### Sincronizadores
+
+**CountDownLatch:**
+```java
+CountDownLatch latch = new CountDownLatch(3); // Aguarda 3 eventos
+
+// Cada thread chama ao terminar
+latch.countDown();
+
+// Thread principal aguarda
+latch.await(); // Bloqueia ate contador zerar
+```
+
+**Semaphore:**
+```java
+Semaphore semaphore = new Semaphore(2); // Max 2 acessos simultaneos
+
+semaphore.acquire();  // Adquire permissao (bloqueia se nao houver)
+// Usa recurso
+semaphore.release();  // Libera permissao
+```
+
+**CyclicBarrier:**
+```java
+CyclicBarrier barrier = new CyclicBarrier(3); // 3 threads
+
+// Cada thread chama
+barrier.await(); // Bloqueia ate todas as 3 chamarem
+// Continua quando todas chegarem
+```
+
+### CompletableFuture (Java 8+)
+
+Programacao assincrona funcional:
+
+```java
+CompletableFuture<String> future = CompletableFuture
+    .supplyAsync(() -> "Hello")           // Executa assincrono
+    .thenApply(String::toUpperCase)       // Transforma
+    .thenApply(s -> s + " World")         // Transforma novamente
+    .thenAccept(System.out::println);     // Consome resultado
+
+// Combinacao
+CompletableFuture<String> f1 = CompletableFuture.supplyAsync(() -> "A");
+CompletableFuture<String> f2 = CompletableFuture.supplyAsync(() -> "B");
+
+CompletableFuture<String> combinado = f1.thenCombine(f2, (a, b) -> a + b);
+```
+
+**Arquivos:**
+- `concorrencia/ConcorrenciaExample.java`
+- `concorrencia/ConcorrenciaTest.java`
+
+## JVM Internals
+
+### Arquitetura da JVM
+
+```
++--------------------------------------------------+
+|                  Class Loader                     |
+|  (Bootstrap -> Extension -> Application)         |
++--------------------------------------------------+
+                          |
+                          v
++--------------------------------------------------+
+|              Runtime Data Areas                   |
+|  +------------+ +------------+ +-------------+   |
+|  |   Heap     | |    Stack   | |   Method    |   |
+|  | (objetos)  | | (frames)   | |    Area     |   |
+|  +------------+ +------------+ +-------------+   |
++--------------------------------------------------+
+                          |
+                          v
++--------------------------------------------------+
+|              Execution Engine                     |
+|  Interpreter -> JIT Compiler -> Native Code      |
++--------------------------------------------------+
+```
+
+### Class Loading
+
+**Hierarquia de ClassLoaders:**
+
+1. **Bootstrap ClassLoader** (nativo)
+   - Carrega classes do Java (`java.lang.*`, `java.util.*`)
+   - Escrito em C/C++, retorna `null` em Java
+
+2. **Platform/Extension ClassLoader**
+   - Carrega extensoes do JDK
+   - Pai do Application
+
+3. **Application ClassLoader**
+   - Carrega classes do classpath
+   - Padrão para classes da aplicacao
+
+**Principio de Delegacao:**
+```java
+ClassLoader loader = getClass().getClassLoader();
+ClassLoader parent = loader.getParent(); // Platform
+ClassLoader bootstrap = parent.getParent(); // null = Bootstrap
+```
+
+### Memory Management
+
+**Heap - Estrutura:**
+
+```
++--------------------------------------------------+
+|                  Young Generation                 |
+|  +-----------+ +-----------+ +----------------+  |
+|  |   Eden    | | Survivor 0| |   Survivor 1   |  |
+|  |  (novos)  | |   (S0)    | |     (S1)       |  |
+|  +-----------+ +-----------+ +----------------+  |
++--------------------------------------------------+
+|              Old Generation                       |
+|         (objetos longevos)                        |
++--------------------------------------------------+
+|              Metaspace (Java 8+)                  |
+|         (fora do heap - metadados)               |
++--------------------------------------------------+
+```
+
+**Ciclo de Vida dos Objetos:**
+1. Criado no **Eden**
+2. Se sobreviver GC, vai para **Survivor 0** ou **S1**
+3. Apos varias colecoes, promovido para **Old Gen**
+4. Eventualmente coletado por **Major GC**
+
+### Garbage Collection
+
+**Tipos de GC:**
+
+| Tipo | Caracteristica | Use Case |
+|------|---------------|----------|
+| **Serial** | Uma thread, pausa total | Aplicacoes pequenas |
+| **Parallel** | Multi-thread, throughput | Padrao Java 8 |
+| **G1** | Regioes, pausa previsivel | Padrao Java 9+ |
+| **ZGC** | Pausa < 10ms | Heaps enormes (TB) |
+| **Shenandoah** | Pausa independente do heap | Latencia baixa |
+
+**Monitoramento:**
+```java
+// Informacoes dos GCs
+List<GarbageCollectorMXBean> gcs = ManagementFactory.getGarbageCollectorMXBeans();
+for (GarbageCollectorMXBean gc : gcs) {
+    System.out.println(gc.getName() + ": " + gc.getCollectionCount());
+}
+
+// Memoria do heap
+Runtime runtime = Runtime.getRuntime();
+long used = runtime.totalMemory() - runtime.freeMemory();
+```
+
+**Memory Leaks Comuns:**
+
+1. **Cache sem limite:**
+```java
+// PROBLEMA
+Map<String, Object> cache = new HashMap<>(); // Nunca remove!
+
+// SOLUCAO
+Map<String, Object> cache = new WeakHashMap<>(); // Permite GC
+// Ou use cache com expiracao (Caffeine, Guava)
+```
+
+2. **Listeners nao removidos:**
+```java
+// PROBLEMA: Adiciona listener mas nunca remove
+button.addActionListener(listener);
+
+// SOLUCAO: Use WeakReference ou remova explicitamente
+```
+
+### JIT Compiler
+
+**Just-In-Time Compilation:**
+- Bytecode e interpretado inicialmente
+- JVM identifica "hot spots" (codigo frequente)
+- JIT compila para codigo nativo da maquina
+- Proximas execucoes usam codigo nativo (muito mais rapido)
+
+**Otimizacoes:**
+- **Inlining:** Substitui chamada de metodo pelo corpo
+- **Escape Analysis:** Identifica objetos que nao escapam do metodo
+- **Dead Code Elimination:** Remove codigo inalcancavel
+
+```java
+// Metodo candidato a otimizacao JIT
+private int calcular(int x) {
+    return x * x + 2 * x + 1; // Sera inline e otimizado
+}
+```
+
+### Stack e StackOverflow
+
+**Caracteristicas da Stack:**
+- Cada thread tem sua propria pilha
+- Contem frames de execucao de metodos
+- Tamanho configuravel: `-Xss1m` (1MB)
+- **StackOverflowError:** Recursao infinita ou muitas chamadas
+
+```java
+// Causa StackOverflowError
+void recursaoInfinita() {
+    recursaoInfinita(); // Chama indefinidamente
+}
+```
+
+**Arquivos:**
+- `jvm/JVMInternalsExample.java`
+- `jvm/JVMInternalsTest.java`
 
 ## Como Executar
 

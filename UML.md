@@ -63,16 +63,14 @@ O diagrama de classes é o **mais utilizado** em UML. Representa a estrutura est
 ### Elementos Básicos
 
 #### 1. Classe
-```
-+------------------+
-|   NomeDaClasse   |  <-- Nome (obrigatório)
-+------------------+
-| - atributo1      |  <-- Atributos
-| + atributo2      |
-+------------------+
-| + metodo1()      |  <-- Métodos
-| - metodo2()      |
-+------------------+
+```mermaid
+classDiagram
+    class NomeDaClasse {
+        -String atributo1
+        +String atributo2
+        +metodo1() void
+        -metodo2() void
+    }
 ```
 
 **Notação de Visibilidade:**
