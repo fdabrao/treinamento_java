@@ -695,26 +695,31 @@ CompletableFuture<String> combinado = f1.thenCombine(f2, (a, b) -> a + b);
 
 ### Arquitetura da JVM
 
-```
-+--------------------------------------------------+
-|                  Class Loader                     |
-|  (Bootstrap -> Extension -> Application)         |
-+--------------------------------------------------+
-                          |
-                          v
-+--------------------------------------------------+
-|              Runtime Data Areas                   |
-|  +------------+ +------------+ +-------------+   |
-|  |   Heap     | |    Stack   | |   Method    |   |
-|  | (objetos)  | | (frames)   | |    Area     |   |
-|  +------------+ +------------+ +-------------+   |
-+--------------------------------------------------+
-                          |
-                          v
-+--------------------------------------------------+
-|              Execution Engine                     |
-|  Interpreter -> JIT Compiler -> Native Code      |
-+--------------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph ClassLoader[Class Loader]
+        direction LR
+        Bootstrap[Bootstrap ClassLoader]
+        Extension[Extension ClassLoader]
+        Application[Application ClassLoader]
+    end
+
+    subgraph Runtime[Runtime Data Areas]
+        Heap[(Heap<br/>Objetos)]
+        Stack[Stack<br/>Frames]
+        Method[Method Area<br/>Metadados]
+    end
+
+    subgraph Execution[Execution Engine]
+        Interpreter[Interpreter]
+        JIT[JIT Compiler]
+        Native[Native Code]
+    end
+
+    ClassLoader --> Runtime
+    Runtime --> Execution
+    Interpreter --> JIT
+    JIT --> Native
 ```
 
 ### Class Loading
@@ -744,20 +749,28 @@ ClassLoader bootstrap = parent.getParent(); // null = Bootstrap
 
 **Heap - Estrutura:**
 
-```
-+--------------------------------------------------+
-|                  Young Generation                 |
-|  +-----------+ +-----------+ +----------------+  |
-|  |   Eden    | | Survivor 0| |   Survivor 1   |  |
-|  |  (novos)  | |   (S0)    | |     (S1)       |  |
-|  +-----------+ +-----------+ +----------------+  |
-+--------------------------------------------------+
-|              Old Generation                       |
-|         (objetos longevos)                        |
-+--------------------------------------------------+
-|              Metaspace (Java 8+)                  |
-|         (fora do heap - metadados)               |
-+--------------------------------------------------+
+```mermaid
+flowchart TB
+    subgraph YoungGen["Young Generation"]
+        Eden[Eden<br/>Objetos novos]
+        S0["Survivor 0 (S0)<br/>Sobreviventes"]
+        S1["Survivor 1 (S1)<br/>Sobreviventes"]
+    end
+
+    subgraph OldGen["Old Generation"]
+        Old["Objetos longevos<br/>Major GC"]
+    end
+
+    subgraph Metaspace["Metaspace (Java 8+)"]
+        Meta["Metadados<br/>Classes<br/>fora do heap"]
+    end
+
+    Eden -->|GC Survive| S0
+    S0 -->|GC Survive| S1
+    S1 -->|GC Survive| OldGen
+    S0 -.->|GC Collect| Metaspace
+    S1 -.->|GC Collect| Metaspace
+    Old -.->|GC Collect| Metaspace
 ```
 
 **Ciclo de Vida dos Objetos:**
