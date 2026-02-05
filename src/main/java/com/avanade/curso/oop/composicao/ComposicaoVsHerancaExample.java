@@ -203,7 +203,7 @@ class Veiculo {
 }
 
 // ============================================
-// 🎯 EXEMPLO PRÁTICO: Sistema de Notificações
+// EXEMPLO PRÁTICO: Sistema de Notificações
 // ============================================
 
 /**
